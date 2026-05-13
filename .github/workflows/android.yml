@@ -29,19 +29,34 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build with Gradle
+    - name: Build Remote Control
       run: ./gradlew assembleDebug --stacktrace --no-daemon
+      working-directory: .
 
-    - name: Upload APK
+    - name: Build Bandwidth Eater
+      run: |
+        cd ../BandwidthEaterApp
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace --no-daemon
+
+    - name: Upload Remote Control APK
       uses: actions/upload-artifact@v4
       with:
         name: SmartIRRemote-debug
         path: app/build/outputs/apk/debug/*.apk
 
+    - name: Upload Bandwidth Eater APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: BandwidthEater-debug
+        path: ../BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: app/build/outputs/apk/debug/*.apk
+        files: |
+          app/build/outputs/apk/debug/*.apk
+          ../BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
