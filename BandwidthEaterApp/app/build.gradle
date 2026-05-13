@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.smart.giga.eater'
-    compileSdk 35
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.smart.giga.eater"
         minSdk 21
-        targetSdk 35
+        targetSdk 34
         versionCode 1
         versionName "3.0"
 

@@ -34,7 +34,7 @@ jobs:
     - name: Build Bandwidth Eater APK
       run: |
         cd BandwidthEaterApp
-        ./gradlew assembleDebug --stacktrace --no-daemon -x lint
+        bash gradlew assembleDebug --stacktrace --no-daemon -x lint
       env:
         JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
 
