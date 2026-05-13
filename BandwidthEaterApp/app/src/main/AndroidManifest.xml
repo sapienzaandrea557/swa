@@ -10,7 +10,7 @@
         android:allowBackup="true"
         android:label="Bandwidth Eater GOD-MODE"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
+        android:theme="@style/Theme.BandwidthEater">
         <activity
             android:name=".MainActivity"
             android:exported="true"
