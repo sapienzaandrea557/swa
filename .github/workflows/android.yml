@@ -30,12 +30,15 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Remote Control
-      run: ./gradlew assembleDebug --stacktrace --no-daemon
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace --no-daemon
 
     - name: Build Bandwidth Eater
       run: |
-        chmod +x BandwidthEaterApp/gradlew
-        ./BandwidthEaterApp/gradlew assembleDebug --project-dir BandwidthEaterApp --stacktrace --no-daemon
+        cd BandwidthEaterApp
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace --no-daemon
 
     - name: Upload Remote Control APK
       uses: actions/upload-artifact@v4
