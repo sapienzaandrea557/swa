@@ -103,12 +103,19 @@ async def main():
     if len(sys.argv) >= 2:
         target = sys.argv[1].replace("+", "")
     else:
-        print(f"{Fore.CYAN}Inserisci il numero di telefono (es: 393738513104)")
+        print(f"{Fore.CYAN}Inserisci il numero di telefono (es: 3383126856 o 393738513104)")
         target = input(f"{Fore.WHITE}BERSAGLIO > ").strip().replace("+", "")
         if not target:
             target = "393738513104" # Default se premi solo invio
             print(f"{Fore.YELLOW}[!] Usando numero di default: {target}")
 
+    # Logica di normalizzazione per numeri italiani
+    if len(target) == 10 and target.startswith("3"):
+        target = "39" + target
+        print(f"{Fore.YELLOW}[*] Numero italiano rilevato, aggiunto prefisso +39: {target}")
+    elif target.startswith("0039"):
+        target = "39" + target[4:]
+    
     bomber = SMSBomber(target)
     try:
         await bomber.attack()
