@@ -98,10 +98,17 @@ class SMSBomber:
 
 async def main():
     print(BANNER)
-    target = "393738513104" 
+    
+    # Chiedi il numero all'inizio se non passato da riga di comando
     if len(sys.argv) >= 2:
         target = sys.argv[1].replace("+", "")
-    
+    else:
+        print(f"{Fore.CYAN}Inserisci il numero di telefono (es: 393738513104)")
+        target = input(f"{Fore.WHITE}BERSAGLIO > ").strip().replace("+", "")
+        if not target:
+            target = "393738513104" # Default se premi solo invio
+            print(f"{Fore.YELLOW}[!] Usando numero di default: {target}")
+
     bomber = SMSBomber(target)
     try:
         await bomber.attack()
