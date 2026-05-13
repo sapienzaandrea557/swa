@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="TELECOMANDO UNIVERSALE"
+        android:text="SMART IR REMOTE"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
         android:textStyle="bold"
@@ -21,17 +21,27 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Controllo Hardware..."
+        android:textAlignment="center"
         android:textColor="#FFFF00"
         android:layout_marginBottom="20dp"/>
 
     <Button
         android:id="@+id/btn_power"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
         android:text="POWER"
-        android:backgroundTint="#FF0000"
+        android:backgroundTint="#FF3B30"
         android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
         android:layout_marginBottom="30dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Seleziona Marca TV:"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="10dp"/>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -40,17 +50,25 @@
         android:gravity="center">
 
         <Button
-            android:id="@+id/btn_vol_down"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="VOL -"
-            android:layout_marginEnd="10dp"/>
-
-        <Button
             android:id="@+id/btn_vol_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="VOL +"
+            android:text="SAMSUNG"
+            android:layout_marginEnd="10dp"/>
+
+        <Button
+            android:id="@+id/btn_vol_down"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LG"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"/>
+
+        <Button
+            android:id="@+id/btn_sony"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SONY"
             android:layout_marginStart="10dp"/>
 
     </LinearLayout>
