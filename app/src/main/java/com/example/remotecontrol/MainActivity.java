@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     // --- IR REMOTE ---
     private ConsumerIrManager irManager;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private static final int F_38 = 38000;
+    private static final int[] COMMON_FREQUENCIES = {36000, 38000, 40000, 56000};
     private static final int[] SAMSUNG_PWR = {4500, 4500, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 4500};
     private static final int[] LG_PWR = {9000, 4500, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 40000};
     private static final int[][] ALL_PWR = {SAMSUNG_PWR, LG_PWR};
@@ -135,12 +135,21 @@ public class MainActivity extends AppCompatActivity {
             if (!hasIr) {
                 Toast.makeText(this, "ATTENZIONE: Sensore IR non rilevato, il segnale potrebbe non partire", Toast.LENGTH_LONG).show();
             }
-            Toast.makeText(this, "Scansione Power Universale...", Toast.LENGTH_SHORT).show();
-            for (int i = 0; i < ALL_PWR.length; i++) {
-                final int idx = i;
-                handler.postDelayed(() -> {
-                    if (irManager != null) irManager.transmit(F_38, ALL_PWR[idx]);
-                }, i * 300);
+            Toast.makeText(this, "Scansione Multi-Frequenza Power...", Toast.LENGTH_SHORT).show();
+            
+            int delay = 0;
+            for (int freq : COMMON_FREQUENCIES) {
+                for (int i = 0; i < ALL_PWR.length; i++) {
+                    final int currentFreq = freq;
+                    final int idx = i;
+                    handler.postDelayed(() -> {
+                        if (irManager != null) {
+                            Log.d(TAG, "Trasmissione Power a " + currentFreq + "Hz");
+                            irManager.transmit(currentFreq, ALL_PWR[idx]);
+                        }
+                    }, delay);
+                    delay += 400; // Aumentato leggermente a 400ms per sicurezza tra frequenze/modelli
+                }
             }
         });
 
