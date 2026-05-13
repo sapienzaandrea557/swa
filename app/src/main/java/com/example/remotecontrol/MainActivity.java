@@ -5,6 +5,7 @@ import android.hardware.ConsumerIrManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -26,8 +27,15 @@ public class MainActivity extends AppCompatActivity {
 
         irManager = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
 
-        if (!irManager.hasIrEmitter()) {
+        TextView statusText = findViewById(R.id.status_text);
+
+        if (irManager == null || !irManager.hasIrEmitter()) {
+            statusText.setText("ERRORE: Hardware IR non trovato");
+            statusText.setTextColor(android.graphics.Color.RED);
             Toast.makeText(this, "Il dispositivo non ha un trasmettitore IR!", Toast.LENGTH_LONG).show();
+        } else {
+            statusText.setText("Hardware IR pronto");
+            statusText.setTextColor(android.graphics.Color.GREEN);
         }
 
         setupButtons();

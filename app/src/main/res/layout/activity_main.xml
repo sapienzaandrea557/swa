@@ -16,6 +16,14 @@
         android:textStyle="bold"
         android:layout_marginBottom="40dp"/>
 
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Controllo Hardware..."
+        android:textColor="#FFFF00"
+        android:layout_marginBottom="20dp"/>
+
     <Button
         android:id="@+id/btn_power"
         android:layout_width="100dp"
