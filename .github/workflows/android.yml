@@ -31,11 +31,10 @@ jobs:
 
     - name: Build Remote Control
       run: ./gradlew assembleDebug --stacktrace --no-daemon
-      working-directory: .
 
     - name: Build Bandwidth Eater
       run: |
-        cd ../BandwidthEaterApp
+        cd BandwidthEaterApp
         chmod +x gradlew
         ./gradlew assembleDebug --stacktrace --no-daemon
 
@@ -49,7 +48,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: BandwidthEater-debug
-        path: ../BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
+        path: BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -57,6 +56,6 @@ jobs:
       with:
         files: |
           app/build/outputs/apk/debug/*.apk
-          ../BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
+          BandwidthEaterApp/app/build/outputs/apk/debug/*.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
