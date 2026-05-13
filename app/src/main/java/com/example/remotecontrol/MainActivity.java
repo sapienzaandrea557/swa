@@ -1,105 +1,197 @@
 package com.example.remotecontrol;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.hardware.ConsumerIrManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.DataOutputStream;
+import java.io.InputStream;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "IRRemote";
+    private static final String TAG = "GOD_MODE";
+    
+    // --- DIAGNOSTICA ---
+    private boolean hasIr = false;
+    private boolean hasRoot = false;
+    private boolean hasInternet = false;
+
+    // --- IR REMOTE ---
     private ConsumerIrManager irManager;
-    private TextView statusText;
     private final Handler handler = new Handler(Looper.getMainLooper());
-
-    // Frequenze comuni
-    private static final int F_36 = 36000;
     private static final int F_38 = 38000;
-    private static final int F_40 = 40000;
-    private static final int F_56 = 56000;
-
-    // --- CODICI POWER ---
     private static final int[] SAMSUNG_PWR = {4500, 4500, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 4500};
     private static final int[] LG_PWR = {9000, 4500, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 40000};
-    private static final int[] SONY_PWR = {2400, 600, 1200, 600, 600, 600, 1200, 600, 600, 600, 1200, 600, 600, 600, 600, 600, 1200, 600, 600, 600, 600, 600, 600, 600, 600, 600};
-    private static final int[] NEC_PWR = {9000, 4500, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 4500};
+    private static final int[][] ALL_PWR = {SAMSUNG_PWR, LG_PWR};
 
-    // --- CODICI VOL+ ---
-    private static final int[] SAMSUNG_VOL_UP = {4500, 4500, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 4500};
-    private static final int[] LG_VOL_UP = {9000, 4500, 560, 560, 560, 560, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 1690, 560, 40000};
+    // --- BANDWIDTH EATER ---
+    private boolean eaterRunning = false;
+    private AtomicLong totalBytes = new AtomicLong(0);
+    private ExecutorService executor;
+    private static final String[] TEST_URLS = {"https://speed.hetzner.de/100MB.bin", "https://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60/media/en-us/ProPlus2021Retail.img"};
 
-    // Array per ciclo universale
-    private static final int[][] ALL_POWER_PATTERNS = {SAMSUNG_PWR, LG_PWR, SONY_PWR, NEC_PWR};
-    private static final int[] ALL_POWER_FREQS = {F_38, F_38, F_40, F_38};
-
-    private static final int[][] ALL_VOL_UP_PATTERNS = {SAMSUNG_VOL_UP, LG_VOL_UP};
-    private static final int[] ALL_VOL_UP_FREQS = {F_38, F_38};
+    // --- UI ELEMENTS ---
+    private TextView tvDiagIr, tvDiagRoot, tvDiagNet, tvSpeed;
+    private Button btnPowerScan, btnEater, btnDeauth;
+    private EditText etDeauthTarget;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        statusText = findViewById(R.id.status_text);
+        initUI();
+        runDiagnostics();
+        setupListeners();
+    }
+
+    private void initUI() {
+        tvDiagIr = findViewById(R.id.tv_diag_ir);
+        tvDiagRoot = findViewById(R.id.tv_diag_root);
+        tvDiagNet = findViewById(R.id.tv_diag_net);
+        tvSpeed = findViewById(R.id.tv_speed);
+        btnPowerScan = findViewById(R.id.btn_power);
+        btnEater = findViewById(R.id.btn_eater);
+        btnDeauth = findViewById(R.id.btn_deauth);
+        etDeauthTarget = findViewById(R.id.et_deauth_target);
+    }
+
+    private void runDiagnostics() {
+        // IR Check
         irManager = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
+        hasIr = (irManager != null && irManager.hasIrEmitter());
+        updateStatus(tvDiagIr, "IR SENSOR", hasIr);
 
-        checkIrStatus();
-        setupButtons();
+        // Root Check
+        hasRoot = checkRoot();
+        updateStatus(tvDiagRoot, "ROOT ACCESS", hasRoot);
+
+        // Network Check
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        hasInternet = (netInfo != null && netInfo.isConnected());
+        updateStatus(tvDiagNet, "INTERNET", hasInternet);
+
+        if (!hasRoot) btnDeauth.setEnabled(false);
+        if (!hasIr) btnPowerScan.setEnabled(false);
     }
 
-    private void checkIrStatus() {
-        if (irManager == null || !irManager.hasIrEmitter()) {
-            statusText.setText("ERRORE: Hardware IR non pronto");
-            statusText.setTextColor(android.graphics.Color.RED);
-        } else {
-            statusText.setText("SISTEMA IR UNIVERSALE PRONTO");
-            statusText.setTextColor(android.graphics.Color.GREEN);
+    private boolean checkRoot() {
+        try {
+            Process p = Runtime.getRuntime().exec("su");
+            DataOutputStream os = new DataOutputStream(p.getOutputStream());
+            os.writeBytes("exit\n");
+            os.flush();
+            p.waitFor();
+            return p.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
         }
     }
 
-    private void setupButtons() {
-        // POWER UNIVERSALE (GOD-MODE)
-        Button btnPower = findViewById(R.id.btn_power);
-        btnPower.setOnClickListener(v -> sendUniversal(ALL_POWER_PATTERNS, ALL_POWER_FREQS, "POWER UNIVERSALE"));
-
-        // VOLUME SU UNIVERSALE
-        Button btnVolUp = findViewById(R.id.btn_vol_up);
-        btnVolUp.setOnClickListener(v -> sendUniversal(ALL_VOL_UP_PATTERNS, ALL_VOL_UP_FREQS, "VOLUME + UNIVERSALE"));
-
-        // Per compatibilità con il vecchio layout, riassegnamo i tasti
-        Button btnSamsung = findViewById(R.id.btn_vol_up); 
-        btnSamsung.setText("VOL + (TUTTI)");
-
-        Button btnLG = findViewById(R.id.btn_vol_down);
-        btnLG.setText("VOL - (TUTTI)");
-        btnLG.setOnClickListener(v -> Toast.makeText(this, "Invio sequenza Volume -...", Toast.LENGTH_SHORT).show());
+    private void updateStatus(TextView tv, String label, boolean ok) {
+        tv.setText(label + ": " + (ok ? "OK" : "DISABILITATO"));
+        tv.setTextColor(ok ? Color.GREEN : Color.RED);
     }
 
-    private void sendUniversal(int[][] patterns, int[] freqs, String label) {
-        if (irManager == null || !irManager.hasIrEmitter()) {
-            Toast.makeText(this, "Hardware IR non disponibile", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void setupListeners() {
+        // IR Power Scan
+        btnPowerScan.setOnClickListener(v -> {
+            Toast.makeText(this, "Scansione Power Universale...", Toast.LENGTH_SHORT).show();
+            for (int i = 0; i < ALL_PWR.length; i++) {
+                final int idx = i;
+                handler.postDelayed(() -> irManager.transmit(F_38, ALL_PWR[idx]), i * 300);
+            }
+        });
 
-        Toast.makeText(this, "Esecuzione " + label + "...", Toast.LENGTH_SHORT).show();
-        
-        // Ciclo rapido su tutte le frequenze e pattern
-        for (int i = 0; i < patterns.length; i++) {
-            final int patternIdx = i;
-            handler.postDelayed(() -> {
-                try {
-                    irManager.transmit(freqs[patternIdx], patterns[patternIdx]);
-                    Log.d(TAG, "Sent pattern " + patternIdx + " at " + freqs[patternIdx] + "Hz");
-                } catch (Exception e) {
-                    Log.e(TAG, "Error at idx " + patternIdx, e);
-                }
-            }, i * 200); // 200ms di intervallo tra un segnale e l'altro
+        // Bandwidth Eater
+        btnEater.setOnClickListener(v -> {
+            if (eaterRunning) stopEater(); else startEater();
+        });
+
+        // WiFi Deauth (Shell Execution)
+        btnDeauth.setOnClickListener(v -> {
+            String target = etDeauthTarget.getText().toString();
+            if (target.isEmpty()) target = "FF:FF:FF:FF:FF:FF";
+            runDeauth(target);
+        });
+    }
+
+    private void startEater() {
+        eaterRunning = true;
+        btnEater.setText("STOP GIGA EATER");
+        btnEater.setBackgroundColor(Color.RED);
+        executor = Executors.newFixedThreadPool(10);
+        for (int i = 0; i < 10; i++) executor.submit(this::downloadJob);
+        startMonitor();
+    }
+
+    private void stopEater() {
+        eaterRunning = false;
+        if (executor != null) executor.shutdownNow();
+        btnEater.setText("START GIGA EATER");
+        btnEater.setBackgroundColor(Color.parseColor("#4CAF50"));
+    }
+
+    private void downloadJob() {
+        OkHttpClient client = new OkHttpClient();
+        byte[] buffer = new byte[1024 * 64];
+        while (eaterRunning) {
+            try (Response response = client.newCall(new Request.Builder().url(TEST_URLS[0]).build()).execute()) {
+                InputStream is = response.body().byteStream();
+                while (eaterRunning && is.read(buffer) != -1) totalBytes.addAndGet(buffer.length);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void startMonitor() {
+        handler.post(new Runnable() {
+            long last = 0;
+            @Override
+            public void run() {
+                if (!eaterRunning) return;
+                long current = totalBytes.get();
+                long speed = (current - last);
+                last = current;
+                tvSpeed.setText("Velocità: " + (speed / 1024 / 1024) + " MB/s");
+                handler.postDelayed(this, 1000);
+            }
+        });
+    }
+
+    private void runDeauth(String target) {
+        try {
+            Process p = Runtime.getRuntime().exec("su");
+            DataOutputStream os = new DataOutputStream(p.getOutputStream());
+            // Nota: Richiede che iw/airmon-ng siano installati o gestiti via shell
+            os.writeBytes("echo 'Deauth target: " + target + "'\n");
+            os.writeBytes("exit\n");
+            os.flush();
+            Toast.makeText(this, "Comando Deauth inviato alla shell Root", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Errore Root: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }
