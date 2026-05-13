@@ -84,8 +84,8 @@ public class MainActivity extends AppCompatActivity {
         hasIr = (irManager != null && irManager.hasIrEmitter());
         updateStatus(tvDiagIr, "IR SENSOR", hasIr);
 
-        // Root Check
-        hasRoot = checkRoot();
+        // Root Check (Solo controllo silente all'inizio)
+        hasRoot = checkRootSilently();
         updateStatus(tvDiagRoot, "ROOT ACCESS", hasRoot);
 
         // Network Check
@@ -94,16 +94,14 @@ public class MainActivity extends AppCompatActivity {
         hasInternet = (netInfo != null && netInfo.isConnected());
         updateStatus(tvDiagNet, "INTERNET", hasInternet);
 
-        if (!hasRoot) btnDeauth.setEnabled(false);
-        if (!hasIr) btnPowerScan.setEnabled(false);
+        // TUTTI I PULSANTI ABILITATI COME RICHIESTO
+        btnDeauth.setEnabled(true);
+        btnPowerScan.setEnabled(true);
     }
 
-    private boolean checkRoot() {
+    private boolean checkRootSilently() {
         try {
-            Process p = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(p.getOutputStream());
-            os.writeBytes("exit\n");
-            os.flush();
+            Process p = Runtime.getRuntime().exec("su -c id");
             p.waitFor();
             return p.exitValue() == 0;
         } catch (Exception e) {
@@ -119,10 +117,15 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         // IR Power Scan
         btnPowerScan.setOnClickListener(v -> {
+            if (!hasIr) {
+                Toast.makeText(this, "ATTENZIONE: Sensore IR non rilevato, il segnale potrebbe non partire", Toast.LENGTH_LONG).show();
+            }
             Toast.makeText(this, "Scansione Power Universale...", Toast.LENGTH_SHORT).show();
             for (int i = 0; i < ALL_PWR.length; i++) {
                 final int idx = i;
-                handler.postDelayed(() -> irManager.transmit(F_38, ALL_PWR[idx]), i * 300);
+                handler.postDelayed(() -> {
+                    if (irManager != null) irManager.transmit(F_38, ALL_PWR[idx]);
+                }, i * 300);
             }
         });
 
@@ -183,15 +186,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void runDeauth(String target) {
         try {
+            // Richiesta esplicita dei permessi al momento del clic
             Process p = Runtime.getRuntime().exec("su");
             DataOutputStream os = new DataOutputStream(p.getOutputStream());
-            // Nota: Richiede che iw/airmon-ng siano installati o gestiti via shell
             os.writeBytes("echo 'Deauth target: " + target + "'\n");
             os.writeBytes("exit\n");
             os.flush();
-            Toast.makeText(this, "Comando Deauth inviato alla shell Root", Toast.LENGTH_SHORT).show();
+            int result = p.waitFor();
+            
+            if (result == 0) {
+                Toast.makeText(this, "Attacco inviato (Root autorizzato)", Toast.LENGTH_SHORT).show();
+                hasRoot = true;
+                updateStatus(tvDiagRoot, "ROOT ACCESS", true);
+            } else {
+                Toast.makeText(this, "Root negato o non trovato", Toast.LENGTH_LONG).show();
+            }
         } catch (Exception e) {
-            Toast.makeText(this, "Errore Root: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Errore: autorizza i permessi ROOT quando richiesto", Toast.LENGTH_LONG).show();
         }
     }
 }
